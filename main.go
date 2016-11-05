@@ -10,6 +10,31 @@ import (
 	"sync"
 )
 
+func main() {
+	message := os.Args[1]
+
+	http.Handle("/fs/", http.StripPrefix("/fs/", http.FileServer(http.Dir("."))))
+
+	http.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
+		handleHello(w, r, message)
+	})
+	http.HandleFunc("/health", handleHealth)
+	http.HandleFunc("/fail", func(w http.ResponseWriter, r *http.Request) {
+		handleSetHealth(w, r, http.StatusServiceUnavailable)
+	})
+	http.HandleFunc("/ok", func(w http.ResponseWriter, r *http.Request) {
+		handleSetHealth(w, r, http.StatusOK)
+	})
+	http.HandleFunc("/env", handleEnv)
+
+	var httpAddress = os.Getenv("NOMAD_ADDR_http")
+	if httpAddress == "" {
+		httpAddress = ":8081"
+	}
+	log.Printf("starting http service at %s", httpAddress)
+	log.Fatal(http.ListenAndServe(httpAddress, nil))
+}
+
 var mutex sync.Mutex
 var counter int
 var healthStatus = http.StatusOK
@@ -48,30 +73,4 @@ func handleHello(w http.ResponseWriter, r *http.Request, message string) {
 	counter++
 	fmt.Fprintf(w, "Hello %d: %s\n", counter, message)
 	mutex.Unlock()
-}
-
-func main() {
-	message := os.Args[1]
-
-	http.Handle("/fs/", http.StripPrefix("/fs/", http.FileServer(http.Dir("."))))
-
-	http.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
-		handleHello(w, r, message)
-	})
-	http.HandleFunc("/health", handleHealth)
-	http.HandleFunc("/fail", func(w http.ResponseWriter, r *http.Request) {
-		handleSetHealth(w, r, http.StatusServiceUnavailable)
-	})
-	http.HandleFunc("/ok", func(w http.ResponseWriter, r *http.Request) {
-		handleSetHealth(w, r, http.StatusOK)
-	})
-	http.HandleFunc("/env", handleEnv)
-
-	var httpAddress = os.Getenv("NOMAD_ADDR_http")
-	if httpAddress == "" {
-		httpAddress = ":8081"
-	}
-	log.Printf("starting http service at %s", httpAddress)
-	log.Fatal(http.ListenAndServe(httpAddress, nil))
-
 }
