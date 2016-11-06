@@ -11,13 +11,20 @@ import (
 )
 
 func main() {
+	log.Printf("starting helloworld")
+
 	message := os.Args[1]
+	var httpAddress = os.Getenv("LISTEN_ADDRESS")
+	if httpAddress == "" {
+		httpAddress = ":8081"
+	}
 
 	http.Handle("/fs/", http.StripPrefix("/fs/", http.FileServer(http.Dir("."))))
-
 	http.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
 		handleHello(w, r, message)
 	})
+	http.HandleFunc("/env", handleEnv)
+
 	http.HandleFunc("/health", handleHealth)
 	http.HandleFunc("/fail", func(w http.ResponseWriter, r *http.Request) {
 		handleSetHealth(w, r, http.StatusServiceUnavailable)
@@ -25,12 +32,7 @@ func main() {
 	http.HandleFunc("/ok", func(w http.ResponseWriter, r *http.Request) {
 		handleSetHealth(w, r, http.StatusOK)
 	})
-	http.HandleFunc("/env", handleEnv)
 
-	var httpAddress = os.Getenv("NOMAD_ADDR_http")
-	if httpAddress == "" {
-		httpAddress = ":8081"
-	}
 	log.Printf("starting http service at %s", httpAddress)
 	log.Fatal(http.ListenAndServe(httpAddress, nil))
 }
